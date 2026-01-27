@@ -1,11 +1,14 @@
 package com.example.Wallet.controller;
 
-import com.example.Wallet.dto.AddMoneyRequest;
-import com.example.Wallet.dto.TransferRequest;
-import com.example.Wallet.dto.WalletResponse;
-import com.example.Wallet.entity.Wallet;
+import com.example.Wallet.dto.*;
+
 import com.example.Wallet.service.WalletService;
 import org.springframework.web.bind.annotation.*;
+
+
+import org.springframework.data.domain.Page;
+import org.springframework.web.bind.annotation.RequestParam;
+
 
 @RestController
 @RequestMapping("/wallet")
@@ -36,6 +39,14 @@ public class WalletController {
             @RequestHeader("Idempotency-Key") String idempotencyKey) {
 
         walletService.transferMoney(request, idempotencyKey);
+    }
+
+    @GetMapping("/transactions")
+    public Page<TransactionResponse> getTransactions(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+
+        return walletService.getMyTransactions(page, size);
     }
 
 

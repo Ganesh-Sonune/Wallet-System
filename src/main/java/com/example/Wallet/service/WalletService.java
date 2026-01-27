@@ -1,8 +1,8 @@
 package com.example.Wallet.service;
 
-import com.example.Wallet.dto.AddMoneyRequest;
-import com.example.Wallet.dto.TransferRequest;
-import com.example.Wallet.dto.WalletResponse;
+import com.example.Wallet.dto.TransactionResponse;
+
+import com.example.Wallet.dto.*;
 import com.example.Wallet.entity.Transaction;
 import com.example.Wallet.entity.User;
 import com.example.Wallet.entity.Wallet;
@@ -13,6 +13,12 @@ import com.example.Wallet.repository.WalletRepository;
 import jakarta.transaction.Transactional;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
+
+
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
+
 
 @Service
 public class WalletService {
@@ -137,6 +143,40 @@ public class WalletService {
         walletRepository.save(fromWallet);
         walletRepository.save(toWallet);
     }
+
+
+    public Page<TransactionResponse> getMyTransactions(int page, int size) {
+
+
+        String email = (String) SecurityContextHolder
+                .getContext()
+                .getAuthentication()
+                .getPrincipal();
+
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        Wallet wallet = walletRepository.findByUser(user)
+                .orElseThrow(() -> new RuntimeException("Wallet not found"));
+
+        return transactionRepository
+                .findByFromWalletOrToWallet(
+                        wallet.getId(),
+                        wallet.getId(),
+                        PageRequest.of(page, size, Sort.by("createdAt").descending())
+                )
+                .map(tx -> new TransactionResponse(
+                        tx.getId(),
+                        tx.getType(),
+                        tx.getStatus(),
+                        tx.getAmount(),
+                        tx.getFromWallet(),
+                        tx.getToWallet(),
+                        tx.getCreatedAt()
+                ));
+
+    }
+
 
 
 
