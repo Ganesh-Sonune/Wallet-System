@@ -1,6 +1,9 @@
 package com.example.Wallet.entity;
 
 import jakarta.persistence.*;
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
+
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
@@ -53,7 +56,7 @@ public class Transaction {
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
 
-    // ===== getters & setters =====
+
 
     public Long getId() {
         return id;

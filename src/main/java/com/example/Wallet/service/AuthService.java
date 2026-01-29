@@ -6,6 +6,8 @@ import com.example.Wallet.dto.RegisterRequest;
 import com.example.Wallet.entity.Role;
 import com.example.Wallet.entity.User;
 import com.example.Wallet.entity.Wallet;
+import com.example.Wallet.exception.InvalidCredentialsException;
+import com.example.Wallet.exception.UserAlreadyExistsException;
 import com.example.Wallet.repository.UserRepository;
 import com.example.Wallet.repository.WalletRepository;
 import com.example.Wallet.security.JwtUtil;
@@ -41,7 +43,8 @@ public class AuthService {
     public void register(RegisterRequest request) {
 
         if (userRepository.findByEmail(request.getEmail()).isPresent()) {
-            throw new RuntimeException("Email already exists");
+            throw new UserAlreadyExistsException("User already registered");
+
         }
 
         User user = new User();
@@ -68,19 +71,20 @@ public class AuthService {
     public LoginResponse login(LoginRequest request) {
 
         User user = userRepository.findByEmail(request.getEmail())
-                .orElseThrow(() -> new RuntimeException("Invalid credentials"));
+                .orElseThrow(() -> new InvalidCredentialsException("Invalid credentials"));
 
         if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
-            throw new RuntimeException("Invalid credentials");
+            throw new InvalidCredentialsException("Invalid credentials");
         }
 
         String token = jwtUtil.generateToken(
                 user.getEmail(),
-                user.getRole().name()   // ✅ enum → String
+                user.getRole().name()
         );
-
 
         return new LoginResponse(token);
     }
+
+
 
 }

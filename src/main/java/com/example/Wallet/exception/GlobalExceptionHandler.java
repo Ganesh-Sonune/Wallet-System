@@ -11,6 +11,20 @@ import java.util.Map;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
+    @ExceptionHandler(InvalidCredentialsException.class)
+    public ResponseEntity<?> handleInvalidCredentials(InvalidCredentialsException ex) {
+        return ResponseEntity
+                .status(HttpStatus.UNAUTHORIZED)
+                .body(Map.of("message", ex.getMessage()));
+    }
+
+    @ExceptionHandler(BusinessException.class)
+    public ResponseEntity<?> handleBusiness(BusinessException ex) {
+        return ResponseEntity
+                .badRequest()
+                .body(Map.of("message", ex.getMessage()));
+    }
+
     @ExceptionHandler(DuplicateRequestException.class)
     public ResponseEntity<?> handleDuplicate(DuplicateRequestException ex) {
         return ResponseEntity.ok(
@@ -18,17 +32,20 @@ public class GlobalExceptionHandler {
         );
     }
 
+    @ExceptionHandler(InsufficientBalanceException.class)
+    public ResponseEntity<?> handleInsufficientBalance(InsufficientBalanceException ex) {
+        return ResponseEntity
+                .status(HttpStatus.CONFLICT)
+                .body(Map.of("message", ex.getMessage()));
+    }
 
-
-    @ExceptionHandler(RuntimeException.class)
-    public ResponseEntity<?> handleRuntime(RuntimeException ex) {
-        return ResponseEntity.badRequest().body(
-                Map.of("message", ex.getMessage())
-        );
+    @ExceptionHandler(UserAlreadyExistsException.class)
+    public ResponseEntity<?> handleUserAlreadyExists(UserAlreadyExistsException ex) {
+        return ResponseEntity
+                .status(HttpStatus.CONFLICT)
+                .body(Map.of("message", ex.getMessage()));
     }
 
 
-
-
-
 }
+

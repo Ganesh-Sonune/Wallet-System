@@ -1,31 +1,27 @@
 package com.example.Wallet.service;
 
-import com.example.Wallet.dto.TransactionResponse;
-
 import com.example.Wallet.dto.*;
 import com.example.Wallet.entity.Transaction;
 import com.example.Wallet.entity.User;
 import com.example.Wallet.entity.Wallet;
 import com.example.Wallet.exception.DuplicateRequestException;
+import com.example.Wallet.exception.InsufficientBalanceException;
+import com.example.Wallet.exception.ResourceNotFoundException;
 import com.example.Wallet.repository.TransactionRepository;
 import com.example.Wallet.repository.UserRepository;
 import com.example.Wallet.repository.WalletRepository;
 import jakarta.transaction.Transactional;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.stereotype.Service;
-
-
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
-
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.stereotype.Service;
 
 @Service
 public class WalletService {
 
     private final UserRepository userRepository;
     private final WalletRepository walletRepository;
-
     private final TransactionRepository transactionRepository;
 
     public WalletService(UserRepository userRepository,
@@ -36,7 +32,9 @@ public class WalletService {
         this.transactionRepository = transactionRepository;
     }
 
-
+    // =========================
+    // GET MY WALLET
+    // =========================
     public WalletResponse getMyWallet() {
 
         String email = (String) SecurityContextHolder
@@ -45,39 +43,46 @@ public class WalletService {
                 .getPrincipal();
 
         User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() ->
+                        new ResourceNotFoundException("User not found"));
 
         Wallet wallet = walletRepository.findByUser(user)
-                .orElseThrow(() -> new RuntimeException("Wallet not found"));
+                .orElseThrow(() ->
+                        new ResourceNotFoundException("Wallet not found"));
 
         return new WalletResponse(wallet.getId(), wallet.getBalance());
     }
 
+    // =========================
+    // ADD MONEY
+    // =========================
     @Transactional
     public WalletResponse addMoney(AddMoneyRequest request, String idempotencyKey) {
 
-        // 1. Idempotency check
+        // 1️⃣ Idempotency check
         transactionRepository.findByIdempotencyKey(idempotencyKey)
                 .ifPresent(tx -> {
-                    throw new RuntimeException("Duplicate request");
+                    throw new DuplicateRequestException("Duplicate request");
                 });
 
-        // 2. Get authenticated user
+        // 2️⃣ Get authenticated user
         String email = (String) SecurityContextHolder
                 .getContext()
                 .getAuthentication()
                 .getPrincipal();
 
         User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() ->
+                        new ResourceNotFoundException("User not found"));
 
         Wallet wallet = walletRepository.findByUser(user)
-                .orElseThrow(() -> new RuntimeException("Wallet not found"));
+                .orElseThrow(() ->
+                        new ResourceNotFoundException("Wallet not found"));
 
-        // 3. Update balance
+        // 3️⃣ Update balance
         wallet.setBalance(wallet.getBalance().add(request.getAmount()));
 
-        // 4. Save transaction
+        // 4️⃣ Save transaction
         Transaction tx = new Transaction();
         tx.setToWallet(wallet.getId());
         tx.setAmount(request.getAmount());
@@ -87,47 +92,60 @@ public class WalletService {
 
         transactionRepository.save(tx);
 
-        // 5. Save wallet (optimistic lock happens here)
+        // 5️⃣ Save wallet
         Wallet updatedWallet = walletRepository.save(wallet);
 
-        return new WalletResponse(updatedWallet.getId(), updatedWallet.getBalance());
+        return new WalletResponse(
+                updatedWallet.getId(),
+                updatedWallet.getBalance()
+        );
     }
 
+    // =========================
+    // TRANSFER MONEY
+    // =========================
     @Transactional
     public TransferResponse transferMoney(TransferRequest request, String idempotencyKey) {
 
-        // 1. Idempotency check
+        // 1️⃣ Idempotency check
         transactionRepository.findByIdempotencyKey(idempotencyKey)
                 .ifPresent(tx -> {
                     throw new DuplicateRequestException("Transfer already processed");
                 });
 
-        // 2. Get sender
+        // 2️⃣ Get sender
         String email = (String) SecurityContextHolder
                 .getContext()
                 .getAuthentication()
                 .getPrincipal();
 
         User sender = userRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() ->
+                        new ResourceNotFoundException("User not found"));
 
         Wallet fromWallet = walletRepository.findByUser(sender)
-                .orElseThrow(() -> new RuntimeException("Sender wallet not found"));
+                .orElseThrow(() ->
+                        new ResourceNotFoundException("Sender wallet not found"));
 
-        // 3. Get receiver wallet
+        // 3️⃣ Get receiver wallet
         Wallet toWallet = walletRepository.findById(request.getToWalletId())
-                .orElseThrow(() -> new RuntimeException("Receiver wallet not found"));
+                .orElseThrow(() ->
+                        new ResourceNotFoundException("Receiver wallet not found"));
 
-        // 4. Balance check
+        // 4️⃣ Balance check (🔥 FIXED)
         if (fromWallet.getBalance().compareTo(request.getAmount()) < 0) {
-            throw new RuntimeException("Insufficient balance");
+            throw new InsufficientBalanceException("Insufficient balance");
         }
 
-        // 5. Update balances
-        fromWallet.setBalance(fromWallet.getBalance().subtract(request.getAmount()));
-        toWallet.setBalance(toWallet.getBalance().add(request.getAmount()));
+        // 5️⃣ Update balances
+        fromWallet.setBalance(
+                fromWallet.getBalance().subtract(request.getAmount())
+        );
+        toWallet.setBalance(
+                toWallet.getBalance().add(request.getAmount())
+        );
 
-        // 6. Save transaction
+        // 6️⃣ Save transaction
         Transaction tx = new Transaction();
         tx.setFromWallet(fromWallet.getId());
         tx.setToWallet(toWallet.getId());
@@ -138,11 +156,10 @@ public class WalletService {
 
         transactionRepository.save(tx);
 
-        // 7. Save wallets (optimistic lock)
+        // 7️⃣ Save wallets
         Wallet updatedFrom = walletRepository.save(fromWallet);
         Wallet updatedTo = walletRepository.save(toWallet);
 
-        // ✅ RESPONSE
         return new TransferResponse(
                 "Transfer successful",
                 updatedFrom.getBalance(),
@@ -150,10 +167,10 @@ public class WalletService {
         );
     }
 
-
-
+    // =========================
+    // GET MY TRANSACTIONS
+    // =========================
     public Page<TransactionResponse> getMyTransactions(int page, int size) {
-
 
         String email = (String) SecurityContextHolder
                 .getContext()
@@ -161,10 +178,12 @@ public class WalletService {
                 .getPrincipal();
 
         User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() ->
+                        new ResourceNotFoundException("User not found"));
 
         Wallet wallet = walletRepository.findByUser(user)
-                .orElseThrow(() -> new RuntimeException("Wallet not found"));
+                .orElseThrow(() ->
+                        new ResourceNotFoundException("Wallet not found"));
 
         return transactionRepository
                 .findByFromWalletOrToWallet(
@@ -181,10 +200,5 @@ public class WalletService {
                         tx.getToWallet(),
                         tx.getCreatedAt()
                 ));
-
     }
-
-
-
-
 }

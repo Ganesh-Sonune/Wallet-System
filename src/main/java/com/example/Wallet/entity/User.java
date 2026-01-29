@@ -34,9 +34,7 @@ public class User {
     public void setRole(Role role) {
         this.role = role;
     }
-// USER, ADMIN
 
-    // ===== getters & setters =====
 
     public Long getId() {
         return id;

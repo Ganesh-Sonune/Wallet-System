@@ -2,6 +2,8 @@ package com.example.Wallet.entity;
 
 
 import jakarta.persistence.*;
+import org.springframework.data.domain.Auditable;
+
 import java.math.BigDecimal;
 
 @Entity
@@ -11,7 +13,7 @@ import java.math.BigDecimal;
                 @UniqueConstraint(columnNames = "user_id")
         }
 )
-public class Wallet {
+public class Wallet  {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
