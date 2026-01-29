@@ -34,11 +34,11 @@ public class WalletController {
     }
 
     @PostMapping("/transfer")
-    public void transfer(
+    public TransferResponse transfer(
             @RequestBody TransferRequest request,
             @RequestHeader("Idempotency-Key") String idempotencyKey) {
 
-        walletService.transferMoney(request, idempotencyKey);
+        return walletService.transferMoney(request, idempotencyKey);
     }
 
     @GetMapping("/transactions")

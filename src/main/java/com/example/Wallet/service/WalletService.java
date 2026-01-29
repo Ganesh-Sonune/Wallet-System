@@ -94,7 +94,7 @@ public class WalletService {
     }
 
     @Transactional
-    public void transferMoney(TransferRequest request, String idempotencyKey) {
+    public TransferResponse transferMoney(TransferRequest request, String idempotencyKey) {
 
         // 1. Idempotency check
         transactionRepository.findByIdempotencyKey(idempotencyKey)
@@ -102,8 +102,7 @@ public class WalletService {
                     throw new DuplicateRequestException("Transfer already processed");
                 });
 
-
-        // 2. Get sender (from JWT)
+        // 2. Get sender
         String email = (String) SecurityContextHolder
                 .getContext()
                 .getAuthentication()
@@ -139,10 +138,18 @@ public class WalletService {
 
         transactionRepository.save(tx);
 
-        // 7. Save wallets (optimistic lock applied here)
-        walletRepository.save(fromWallet);
-        walletRepository.save(toWallet);
+        // 7. Save wallets (optimistic lock)
+        Wallet updatedFrom = walletRepository.save(fromWallet);
+        Wallet updatedTo = walletRepository.save(toWallet);
+
+        // ✅ RESPONSE
+        return new TransferResponse(
+                "Transfer successful",
+                updatedFrom.getBalance(),
+                updatedTo.getBalance()
+        );
     }
+
 
 
     public Page<TransactionResponse> getMyTransactions(int page, int size) {
