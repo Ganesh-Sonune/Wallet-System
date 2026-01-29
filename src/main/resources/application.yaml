@@ -26,3 +26,6 @@ logging:
 jwt:
   secret: wallet-secret-key-change-in-production-1234567890
 
+app:
+  admin:
+    registration-secret: ADMIN_SECRET
